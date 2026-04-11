@@ -1,0 +1,929 @@
+openapi: 3.0.3
+info:
+  title: Patient Appointment and Vaccination Portal
+  description: >
+    RESTful API for managing patient profiles, immunization records, and appointment
+    scheduling. Implements Richardson Maturity Model Level 3 (HATEOAS) with hypermedia
+    links embedded in all resource representations.
+  version: 1.0.0
+
+servers:
+  - url: https://health-portal.onrender.com/api/v1
+    description: Production
+  - url: http://localhost:8080/api/v1
+    description: Local development
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: Patients
+    description: CRUD operations for patient profiles
+  - name: Vaccinations
+    description: Immunization records scoped to a patient
+  - name: Appointments
+    description: Scheduling and management of appointments
+  - name: Clinics
+    description: Clinic lookup and available time-slot discovery
+  - name: Auth
+    description: Authentication
+
+paths:
+
+  # Auth 
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Obtain a JWT token
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authenticated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Patients 
+  /patients:
+    get:
+      tags: [Patients]
+      summary: List all patients
+      parameters:
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated list of patients
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Patients]
+      summary: Create a new patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientRequest'
+      responses:
+        '201':
+          description: Patient created
+          headers:
+            Location:
+              description: URI of the newly created patient
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /patients/{patientId}:
+    parameters:
+      - $ref: '#/components/parameters/PatientId'
+    get:
+      tags: [Patients]
+      summary: Get a patient by ID
+      responses:
+        '200':
+          description: Patient found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Patients]
+      summary: Update a patient profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PatientRequest'
+      responses:
+        '200':
+          description: Patient updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PatientResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Patients]
+      summary: Delete a patient
+      responses:
+        '204':
+          description: Patient deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Convenience: patient-scoped appointments (read-only)
+  /patients/{patientId}/appointments:
+    parameters:
+      - $ref: '#/components/parameters/PatientId'
+    get:
+      tags: [Appointments]
+      summary: List all appointments for a patient
+      description: >
+        Convenience read-only sub-resource. Equivalent to
+        GET /appointments?patientId={patientId}. The canonical booking
+        endpoint remains POST /appointments.
+      parameters:
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppointmentStatus'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated list of appointments for the patient
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Vaccinations
+  /patients/{patientId}/vaccinations:
+    parameters:
+      - $ref: '#/components/parameters/PatientId'
+    get:
+      tags: [Vaccinations]
+      summary: List all vaccination records for a patient
+      responses:
+        '200':
+          description: List of vaccination records
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaccinationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    post:
+      tags: [Vaccinations]
+      summary: Add a vaccination record for a patient
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VaccinationRequest'
+      responses:
+        '201':
+          description: Vaccination record created
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaccinationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+
+  /patients/{patientId}/vaccinations/{vaccinationId}:
+    parameters:
+      - $ref: '#/components/parameters/PatientId'
+      - $ref: '#/components/parameters/VaccinationId'
+    get:
+      tags: [Vaccinations]
+      summary: Get a specific vaccination record
+      responses:
+        '200':
+          description: Vaccination record found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaccinationResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Vaccinations]
+      summary: Update a vaccination record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VaccinationRequest'
+      responses:
+        '200':
+          description: Vaccination record updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VaccinationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Vaccinations]
+      summary: Delete a vaccination record
+      responses:
+        '204':
+          description: Vaccination record deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Appointments 
+  /appointments:
+    get:
+      tags: [Appointments]
+      summary: List appointments (filterable by patient or clinic)
+      parameters:
+        - name: patientId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: clinicId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            $ref: '#/components/schemas/AppointmentStatus'
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: Paginated list of appointments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Appointments]
+      summary: Book a new appointment
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+      responses:
+        '201':
+          description: Appointment booked
+          headers:
+            Location:
+              schema:
+                type: string
+                format: uri
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Time slot already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /appointments/{appointmentId}:
+    parameters:
+      - $ref: '#/components/parameters/AppointmentId'
+    get:
+      tags: [Appointments]
+      summary: Get an appointment by ID
+      responses:
+        '200':
+          description: Appointment found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Appointments]
+      summary: Update an appointment (reschedule or change details)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppointmentRequest'
+      responses:
+        '200':
+          description: Appointment updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppointmentResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+    delete:
+      tags: [Appointments]
+      summary: Cancel an appointment
+      responses:
+        '204':
+          description: Appointment cancelled
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Clinics 
+  /clinics:
+    get:
+      tags: [Clinics]
+      summary: Search for clinics (backed by external API)
+      parameters:
+        - name: zip
+          in: query
+          description: Filter clinics by ZIP code
+          schema:
+            type: string
+        - name: city
+          in: query
+          schema:
+            type: string
+        - $ref: '#/components/parameters/PageParam'
+        - $ref: '#/components/parameters/SizeParam'
+      responses:
+        '200':
+          description: List of clinics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /clinics/{clinicId}:
+    parameters:
+      - $ref: '#/components/parameters/ClinicId'
+    get:
+      tags: [Clinics]
+      summary: Get a clinic by ID
+      responses:
+        '200':
+          description: Clinic found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClinicResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /clinics/{clinicId}/slots:
+    parameters:
+      - $ref: '#/components/parameters/ClinicId'
+    get:
+      tags: [Clinics]
+      summary: Get available time slots for a clinic
+      parameters:
+        - name: date
+          in: query
+          required: true
+          description: Date to check availability (YYYY-MM-DD)
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Available time slots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SlotListResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # Address Validation 
+  /address/validate:
+    get:
+      tags: [Patients]
+      summary: Validate a patient address via external API
+      parameters:
+        - name: street
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: city
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: zip
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Address validation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AddressValidationResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+# ---------------------------------------------------------------------------
+# COMPONENTS
+# ---------------------------------------------------------------------------
+components:
+
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # Parameters 
+  parameters:
+    PatientId:
+      name: patientId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    VaccinationId:
+      name: vaccinationId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    AppointmentId:
+      name: appointmentId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    ClinicId:
+      name: clinicId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    PageParam:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+    SizeParam:
+      name: size
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  # Reusable Responses 
+  responses:
+    BadRequest:
+      description: Invalid request payload
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Missing or invalid JWT token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Resource already exists or constraint violated
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+
+  # Schemas 
+  schemas:
+
+    # Shared HATEOAS link object
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+          format: uri
+        rel:
+          type: string
+        method:
+          type: string
+          enum: [GET, POST, PUT, DELETE]
+      required: [href, rel, method]
+
+    Links:
+      type: object
+      description: HATEOAS hypermedia links
+      additionalProperties:
+        $ref: '#/components/schemas/Link'
+      example:
+        self:
+          href: /api/v1/patients/abc-123
+          rel: self
+          method: GET
+        update:
+          href: /api/v1/patients/abc-123
+          rel: update
+          method: PUT
+        delete:
+          href: /api/v1/patients/abc-123
+          rel: delete
+          method: DELETE
+        vaccinations:
+          href: /api/v1/patients/abc-123/vaccinations
+          rel: vaccinations
+          method: GET
+        schedule:
+          href: /api/v1/appointments
+          rel: schedule
+          method: POST
+
+    Address:
+      type: object
+      properties:
+        street:
+          type: string
+          example: 123 Main St
+        city:
+          type: string
+          example: Baltimore
+        state:
+          type: string
+          example: MD
+        zip:
+          type: string
+          example: "21201"
+      required: [street, city, state, zip]
+
+    VaccineType:
+      type: string
+      enum:
+        - COVID_19
+        - FLU
+        - MMR
+        - HEPATITIS_B
+
+    AppointmentStatus:
+      type: string
+      enum:
+        - SCHEDULED
+        - COMPLETED
+        - CANCELLED
+
+    # Auth 
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+          format: password
+      required: [username, password]
+
+    TokenResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        expiresIn:
+          type: integer
+          description: Token lifetime in seconds
+
+    # Patient 
+    PatientRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          example: Jane
+        lastName:
+          type: string
+          example: Doe
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1990-04-15"
+        email:
+          type: string
+          format: email
+          example: jane.doe@example.com
+        phone:
+          type: string
+          example: "410-555-0100"
+        address:
+          $ref: '#/components/schemas/Address'
+      required: [firstName, lastName, dateOfBirth, email, address]
+
+    PatientResponse:
+      allOf:
+        - $ref: '#/components/schemas/PatientRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            _links:
+              $ref: '#/components/schemas/Links'
+          required: [id, _links]
+
+    PatientListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/PatientResponse'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # Vaccination 
+    VaccinationRequest:
+      type: object
+      properties:
+        vaccineType:
+          $ref: '#/components/schemas/VaccineType'
+        dateAdministered:
+          type: string
+          format: date
+          example: "2025-10-01"
+        nextDueDate:
+          type: string
+          format: date
+          example: "2026-10-01"
+        provider:
+          type: string
+          example: City Health Clinic
+        lotNumber:
+          type: string
+          example: A1B2C3
+      required: [vaccineType, dateAdministered]
+
+    VaccinationResponse:
+      allOf:
+        - $ref: '#/components/schemas/VaccinationRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            patientId:
+              type: string
+              format: uuid
+            isDue:
+              type: boolean
+              description: True if nextDueDate is on or before today
+            _links:
+              $ref: '#/components/schemas/Links'
+          required: [id, patientId, _links]
+
+    VaccinationListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/VaccinationResponse'
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # Appointment 
+    AppointmentRequest:
+      type: object
+      properties:
+        patientId:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        dateTime:
+          type: string
+          format: date-time
+          example: "2026-05-15T10:00:00"
+        reason:
+          type: string
+          example: Annual flu vaccination
+      required: [patientId, clinicId, dateTime]
+
+    AppointmentResponse:
+      allOf:
+        - $ref: '#/components/schemas/AppointmentRequest'
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            status:
+              $ref: '#/components/schemas/AppointmentStatus'
+            _links:
+              $ref: '#/components/schemas/Links'
+          required: [id, status, _links]
+
+    AppointmentListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/AppointmentResponse'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # Clinic 
+    ClinicResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Johns Hopkins Community Clinic
+        address:
+          $ref: '#/components/schemas/Address'
+        phone:
+          type: string
+          example: "410-555-0200"
+        _links:
+          $ref: '#/components/schemas/Links'
+      required: [id, name, address, _links]
+
+    ClinicListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/ClinicResponse'
+        page:
+          $ref: '#/components/schemas/PageMetadata'
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # Time Slot 
+    SlotResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        clinicId:
+          type: string
+          format: uuid
+        dateTime:
+          type: string
+          format: date-time
+        available:
+          type: boolean
+        _links:
+          $ref: '#/components/schemas/Links'
+      required: [id, clinicId, dateTime, available, _links]
+
+    SlotListResponse:
+      type: object
+      properties:
+        content:
+          type: array
+          items:
+            $ref: '#/components/schemas/SlotResponse'
+        _links:
+          $ref: '#/components/schemas/Links'
+
+    # Address Validation 
+    AddressValidationResponse:
+      type: object
+      properties:
+        valid:
+          type: boolean
+        normalizedAddress:
+          $ref: '#/components/schemas/Address'
+        message:
+          type: string
+          example: Address verified successfully
+
+    # Shared 
+    PageMetadata:
+      type: object
+      properties:
+        number:
+          type: integer
+        size:
+          type: integer
+        totalElements:
+          type: integer
+        totalPages:
+          type: integer
+
+    ErrorResponse:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        status:
+          type: integer
+        error:
+          type: string
+        message:
+          type: string
+        path:
+          type: string
+      required: [timestamp, status, error, message, path]
