@@ -76,7 +76,7 @@ public class PatientController {
     public ResponseEntity<Patient> createPatient(@Valid @RequestBody Patient patient) {
         log.info("POST /patients  email={}", patient.getEmail());
         Patient created = service.createPatient(patient);
-        // No vaccinations yet for a new patient, so hasDue = false
+        // new patients have no vaccinations yet
         created.setLinks(patientLinks(created.getId(), false));
         URI location = URI.create("/api/v1/patients/" + created.getId());
         return ResponseEntity.created(location).body(created);

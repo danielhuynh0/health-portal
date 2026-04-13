@@ -38,7 +38,6 @@ public class AppointmentController {
         this.service = service;
     }
 
-    // GET /appointments
     @GetMapping("/appointments")
     public ResponseEntity<AppointmentListResponse> getAppointments(
             @RequestParam(required = false) UUID patientId,
@@ -59,7 +58,6 @@ public class AppointmentController {
         return ResponseEntity.ok(new AppointmentListResponse(result.getContent(), meta, links));
     }
 
-    // GET /patients/{patientId}/appointments
     @GetMapping("/patients/{patientId}/appointments")
     public ResponseEntity<AppointmentListResponse> getAppointmentsForPatient(
             @PathVariable UUID patientId,
@@ -80,7 +78,6 @@ public class AppointmentController {
         return ResponseEntity.ok(new AppointmentListResponse(result.getContent(), meta, links));
     }
 
-    // GET /appointments/{appointmentId}
     @GetMapping("/appointments/{appointmentId}")
     public ResponseEntity<Appointment> getAppointment(@PathVariable UUID appointmentId) {
         log.info("GET /appointments/{}", appointmentId);
@@ -89,7 +86,6 @@ public class AppointmentController {
         return ResponseEntity.ok(a);
     }
 
-    // POST /appointments
     @PostMapping("/appointments")
     public ResponseEntity<Appointment> createAppointment(@Valid @RequestBody Appointment appointment) {
         log.info("POST /appointments  patientId={} clinicId={}", appointment.getPatientId(), appointment.getClinicId());
@@ -99,7 +95,6 @@ public class AppointmentController {
         return ResponseEntity.created(location).body(created);
     }
 
-    // PUT /appointments/{appointmentId}
     @PutMapping("/appointments/{appointmentId}")
     public ResponseEntity<Appointment> updateAppointment(@PathVariable UUID appointmentId,
                                                           @Valid @RequestBody Appointment appointment) {
@@ -109,7 +104,6 @@ public class AppointmentController {
         return ResponseEntity.ok(updated);
     }
 
-    // DELETE /appointments/{appointmentId}
     @DeleteMapping("/appointments/{appointmentId}")
     public ResponseEntity<Void> deleteAppointment(@PathVariable UUID appointmentId) {
         log.info("DELETE /appointments/{}", appointmentId);

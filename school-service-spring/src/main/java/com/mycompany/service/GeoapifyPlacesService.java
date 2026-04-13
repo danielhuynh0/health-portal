@@ -48,9 +48,7 @@ public class GeoapifyPlacesService {
         }
     }
 
-    // -----------------------------------------------------------------------
     // Step 1 — geocode ZIP / city to lat/lon
-    // -----------------------------------------------------------------------
 
     private double[] geocode(String zip, String city) {
         GeocodeResponse resp = restClient.get()
@@ -80,9 +78,7 @@ public class GeoapifyPlacesService {
         return new double[]{r.lat, r.lon};
     }
 
-    // -----------------------------------------------------------------------
     // Step 2 — search Places API in a radius around that point
-    // -----------------------------------------------------------------------
 
     private List<Clinic> fetchPlaces(double lat, double lon, int limit, int offset) {
         PlacesResponse resp = restClient.get()
@@ -131,9 +127,7 @@ public class GeoapifyPlacesService {
         return clinic;
     }
 
-    // -----------------------------------------------------------------------
     // Internal response shapes
-    // -----------------------------------------------------------------------
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class GeocodeResponse {
@@ -152,7 +146,6 @@ public class GeoapifyPlacesService {
         @JsonProperty("confidence") public double confidence;
     }
 
-    // GeoJSON FeatureCollection
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class PlacesResponse {
         @JsonProperty("features") public List<PlaceFeature> features;

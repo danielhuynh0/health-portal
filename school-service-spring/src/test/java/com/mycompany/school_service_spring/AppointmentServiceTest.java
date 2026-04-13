@@ -123,4 +123,13 @@ class AppointmentServiceTest {
 
         assertThrows(NotFoundException.class, () -> service.deleteAppointment(appointmentId));
     }
+
+    @Test
+    void getAppointmentsForPatient_throwsNotFound_whenPatientDoesNotExist() {
+        UUID unknownPatient = UUID.randomUUID();
+        when(patientRepo.existsById(unknownPatient)).thenReturn(false);
+
+        assertThrows(NotFoundException.class,
+                () -> service.getAppointmentsForPatient(unknownPatient, null, 0, 20));
+    }
 }
