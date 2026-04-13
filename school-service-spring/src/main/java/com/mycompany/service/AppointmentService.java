@@ -10,9 +10,11 @@ import com.mycompany.exception.ConflictException;
 import com.mycompany.exception.NotFoundException;
 import com.mycompany.models.Appointment;
 import com.mycompany.models.AppointmentStatus;
+import com.mycompany.models.Slot;
 import com.mycompany.repo.AppointmentRepository;
 import com.mycompany.repo.ClinicRepository;
 import com.mycompany.repo.PatientRepository;
+import com.mycompany.repo.SlotRepository;
 
 @Service
 public class AppointmentService {
@@ -20,12 +22,14 @@ public class AppointmentService {
     private final AppointmentRepository repo;
     private final PatientRepository patientRepo;
     private final ClinicRepository clinicRepo;
+    private final SlotRepository slotRepo;
 
     public AppointmentService(AppointmentRepository repo, PatientRepository patientRepo,
-                              ClinicRepository clinicRepo) {
+                              ClinicRepository clinicRepo, SlotRepository slotRepo) {
         this.repo = repo;
         this.patientRepo = patientRepo;
         this.clinicRepo = clinicRepo;
+        this.slotRepo = slotRepo;
     }
 
     public Page<Appointment> getAppointments(UUID patientId, UUID clinicId,
@@ -66,10 +70,15 @@ public class AppointmentService {
         if (!clinicRepo.existsById(appointment.getClinicId())) {
             throw new NotFoundException("Clinic not found: " + appointment.getClinicId());
         }
-        if (repo.existsByClinicIdAndDateTime(appointment.getClinicId(), appointment.getDateTime())) {
-            throw new ConflictException("Time slot already taken at " + appointment.getDateTime());
+        Slot slot = slotRepo.findById(appointment.getSlotId())
+                .orElseThrow(() -> new NotFoundException("Slot not found: " + appointment.getSlotId()));
+        if (!slot.isAvailable()) {
+            throw new ConflictException("Slot is no longer available: " + appointment.getSlotId());
         }
-        return repo.save(appointment);
+        Appointment saved = repo.save(appointment);
+        slot.setAvailable(false);
+        slotRepo.save(slot);
+        return saved;
     }
 
     public Appointment updateAppointment(UUID id, Appointment updated) {
@@ -81,9 +90,12 @@ public class AppointmentService {
     }
 
     public void deleteAppointment(UUID id) {
-        if (!repo.existsById(id)) {
-            throw new NotFoundException("Appointment not found: " + id);
-        }
-        repo.deleteById(id);
+        Appointment appointment = repo.findById(id)
+                .orElseThrow(() -> new NotFoundException("Appointment not found: " + id));
+        repo.delete(appointment);
+        slotRepo.findById(appointment.getSlotId()).ifPresent(slot -> {
+            slot.setAvailable(true);
+            slotRepo.save(slot);
+        });
     }
 }

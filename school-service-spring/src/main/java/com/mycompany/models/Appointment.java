@@ -23,12 +23,16 @@ import lombok.Setter;
 @Entity
 @Table(name = "appointments")
 @Getter @Setter
-@JsonPropertyOrder({"id", "patientId", "clinicId", "dateTime", "reason", "status", "_links"})
+@JsonPropertyOrder({"id", "slotId", "patientId", "clinicId", "dateTime", "reason", "status", "_links"})
 public class Appointment {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @NotNull
+    @Column(nullable = false)
+    private UUID slotId;
 
     @NotNull
     @Column(nullable = false)
