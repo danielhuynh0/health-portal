@@ -23,13 +23,6 @@ import com.mycompany.repo.PatientRepository;
 import com.mycompany.repo.VaccinationRepository;
 import com.mycompany.service.VaccinationService;
 
-/**
- * Tests for VaccinationService.
- *
- * Covers two areas: the hasAnyDueVaccination() method that gates the HATEOAS
- * schedule link, and patient data isolation (a vaccination should only be
- * accessible under the patient it belongs to).
- */
 @ExtendWith(MockitoExtension.class)
 class VaccinationServiceTest {
 
@@ -44,8 +37,7 @@ class VaccinationServiceTest {
         Vaccination overdue = vaccination(VaccineType.FLU, LocalDate.now().minusDays(30).toString());
         when(vaccinationRepo.findByPatientId(patientId)).thenReturn(List.of(overdue));
 
-        assertTrue(service.hasAnyDueVaccination(patientId),
-                "Schedule link should appear when a vaccination is overdue");
+        assertTrue(service.hasAnyDueVaccination(patientId));
     }
 
     @Test
@@ -56,8 +48,7 @@ class VaccinationServiceTest {
         Vaccination future2 = vaccination(VaccineType.HEPATITIS_B, LocalDate.now().plusMonths(6).toString());
         when(vaccinationRepo.findByPatientId(patientId)).thenReturn(List.of(future, overdue, future2));
 
-        assertTrue(service.hasAnyDueVaccination(patientId),
-                "Schedule link should appear when at least one of many vaccinations is due");
+        assertTrue(service.hasAnyDueVaccination(patientId));
     }
 
     @Test
@@ -67,8 +58,7 @@ class VaccinationServiceTest {
         Vaccination v2 = vaccination(VaccineType.COVID_19,   LocalDate.now().plusYears(1).toString());
         when(vaccinationRepo.findByPatientId(patientId)).thenReturn(List.of(v1, v2));
 
-        assertFalse(service.hasAnyDueVaccination(patientId),
-                "Schedule link should not appear when all vaccinations have future due dates");
+        assertFalse(service.hasAnyDueVaccination(patientId));
     }
 
     @Test
@@ -76,8 +66,7 @@ class VaccinationServiceTest {
         UUID patientId = UUID.randomUUID();
         when(vaccinationRepo.findByPatientId(patientId)).thenReturn(List.of());
 
-        assertFalse(service.hasAnyDueVaccination(patientId),
-                "Schedule link should not appear when a patient has no vaccination records");
+        assertFalse(service.hasAnyDueVaccination(patientId));
     }
 
     @Test
@@ -94,8 +83,7 @@ class VaccinationServiceTest {
         when(vaccinationRepo.findById(vaccinationId)).thenReturn(Optional.of(v));
 
         assertThrows(NotFoundException.class,
-                () -> service.getVaccination(requestingPatient, vaccinationId),
-                "Accessing another patient's vaccination record should return 404");
+                () -> service.getVaccination(requestingPatient, vaccinationId));
     }
 
     @Test
@@ -104,8 +92,7 @@ class VaccinationServiceTest {
         when(patientRepo.existsById(unknownPatient)).thenReturn(false);
 
         assertThrows(NotFoundException.class,
-                () -> service.getVaccination(unknownPatient, UUID.randomUUID()),
-                "Getting a vaccination for a non-existent patient should return 404");
+                () -> service.getVaccination(unknownPatient, UUID.randomUUID()));
     }
 
     @Test
@@ -115,8 +102,7 @@ class VaccinationServiceTest {
 
         Vaccination v = vaccination(VaccineType.MMR, LocalDate.now().plusYears(1).toString());
         assertThrows(NotFoundException.class,
-                () -> service.createVaccination(unknownPatient, v),
-                "Creating a vaccination for a non-existent patient should return 404");
+                () -> service.createVaccination(unknownPatient, v));
     }
 
     @Test

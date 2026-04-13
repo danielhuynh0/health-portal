@@ -33,13 +33,6 @@ import com.mycompany.security.JwtUtil;
 import com.mycompany.service.PatientService;
 import com.mycompany.service.VaccinationService;
 
-/**
- * Controller-layer tests for PatientController.
- *
- * Verifies HTTP status codes, the HATEOAS schedule link requirement, the
- * error response body shape, and the Location header on 201 responses.
- * Uses @WebMvcTest so only the web layer is loaded — services are mocked.
- */
 @WebMvcTest(PatientController.class)
 @WithMockUser
 class PatientControllerTest {
@@ -55,8 +48,6 @@ class PatientControllerTest {
     @MockitoBean JwtUtil jwtUtil; // required by JwtRequestFilter which is loaded by @WebMvcTest
 
     private static final UUID PATIENT_ID = UUID.fromString("00000000-0000-0000-0000-000000000001");
-
-    // GET /patients/{patientId}
 
     @Test
     void getPatient_returns200WithLinks() throws Exception {
@@ -104,8 +95,6 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.path").exists());
     }
-
-    // POST /patients
 
     @Test
     void createPatient_returns201WithLocationHeader() throws Exception {
@@ -155,8 +144,6 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.status").value(400));
     }
 
-    // PUT /patients/{patientId}
-
     @Test
     void updatePatient_returns200() throws Exception {
         Patient updated = patient();
@@ -182,8 +169,6 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.status").value(404));
     }
 
-    // DELETE /patients/{patientId}
-
     @Test
     void deletePatient_returns204() throws Exception {
         mockMvc.perform(delete("/patients/{id}", PATIENT_ID))
@@ -199,8 +184,6 @@ class PatientControllerTest {
                 .andExpect(jsonPath("$.status").value(404));
     }
 
-    // Helpers
-
     private Patient patient() {
         Patient p = new Patient();
         p.setId(PATIENT_ID);
@@ -212,7 +195,6 @@ class PatientControllerTest {
         return p;
     }
 
-    /** A valid patient body for POST/PUT requests. */
     private Patient patientBody() {
         Patient p = new Patient();
         p.setFirstName("Jane");

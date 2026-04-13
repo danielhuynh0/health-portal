@@ -31,8 +31,7 @@ public class SecurityConfig {
                     "/swagger-ui/**", "/swagger-ui.html",
                     "/swagger-ui/index.html", "/openapi.yaml",
                     "/v3/api-docs/**",
-                    "/error"          // Spring Boot error dispatcher — must be open or
-                                      // unhandled exceptions tunnel through as 401
+                    "/error"
                 ).permitAll()
                 .anyRequest().authenticated()
             )
@@ -52,7 +51,7 @@ public class SecurityConfig {
         return (request, response, ex) -> {
             response.setStatus(HttpServletResponse.SC_FORBIDDEN);
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Access denied: You do not have permission to access this resource.\"}");
+            response.getWriter().write("{\"error\": \"Access denied\"}");
         };
     }
 
@@ -61,7 +60,7 @@ public class SecurityConfig {
         return (request, response, ex) -> {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            response.getWriter().write("{\"error\": \"Unauthorized: You must provide a valid token to access this resource.\"}");
+            response.getWriter().write("{\"error\": \"Unauthorized\"}");
         };
     }
 }

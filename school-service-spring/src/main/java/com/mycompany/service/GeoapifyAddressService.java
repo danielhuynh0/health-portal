@@ -71,9 +71,7 @@ public class GeoapifyAddressService {
         return new AddressValidationResponse(true, normalized, "Address verified successfully");
     }
 
-    // -----------------------------------------------------------------------
-    // Internal Geoapify response shapes (format=json)
-    // -----------------------------------------------------------------------
+    // internal response shapes for Geoapify format=json
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class GeoapifyResponse {

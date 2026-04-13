@@ -21,12 +21,6 @@ import com.mycompany.models.Patient;
 import com.mycompany.repo.PatientRepository;
 import com.mycompany.service.PatientService;
 
-/**
- * Tests for PatientService.
- *
- * Covers the core CRUD contract: duplicate email detection, and correct
- * 404 behavior when operating on a patient that does not exist.
- */
 @ExtendWith(MockitoExtension.class)
 class PatientServiceTest {
 
@@ -39,9 +33,7 @@ class PatientServiceTest {
         Patient patient = patient("jane.doe@example.com");
         when(patientRepo.existsByEmail("jane.doe@example.com")).thenReturn(true);
 
-        assertThrows(ConflictException.class,
-                () -> service.createPatient(patient),
-                "Registering a patient with a duplicate email must throw a 409 Conflict");
+        assertThrows(ConflictException.class, () -> service.createPatient(patient));
         verify(patientRepo, never()).save(any());
     }
 
@@ -61,9 +53,7 @@ class PatientServiceTest {
         UUID unknownId = UUID.randomUUID();
         when(patientRepo.findById(unknownId)).thenReturn(Optional.empty());
 
-        assertThrows(NotFoundException.class,
-                () -> service.getPatientById(unknownId),
-                "Fetching a non-existent patient must throw a 404 Not Found");
+        assertThrows(NotFoundException.class, () -> service.getPatientById(unknownId));
     }
 
     @Test
@@ -71,9 +61,7 @@ class PatientServiceTest {
         UUID unknownId = UUID.randomUUID();
         when(patientRepo.existsById(unknownId)).thenReturn(false);
 
-        assertThrows(NotFoundException.class,
-                () -> service.updatePatient(unknownId, patient("x@example.com")),
-                "Updating a non-existent patient must throw a 404 Not Found");
+        assertThrows(NotFoundException.class, () -> service.updatePatient(unknownId, patient("x@example.com")));
         verify(patientRepo, never()).save(any());
     }
 
@@ -82,9 +70,7 @@ class PatientServiceTest {
         UUID unknownId = UUID.randomUUID();
         when(patientRepo.existsById(unknownId)).thenReturn(false);
 
-        assertThrows(NotFoundException.class,
-                () -> service.deletePatient(unknownId),
-                "Deleting a non-existent patient must throw a 404 Not Found");
+        assertThrows(NotFoundException.class, () -> service.deletePatient(unknownId));
         verify(patientRepo, never()).deleteById(any());
     }
 
