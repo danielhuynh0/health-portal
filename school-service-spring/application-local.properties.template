@@ -1,0 +1,13 @@
+# Copy this file to application-local.properties and fill in your values.
+# application-local.properties is gitignored — never commit real secrets.
+
+geoapify.api-key=YOUR_GEOAPIFY_API_KEY
+
+db.host=localhost
+db.port=3306
+db.name=health_portal_db
+
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
+
+jwt.secret=YOUR_JWT_SECRET_MIN_256_BITS

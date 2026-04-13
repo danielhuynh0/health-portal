@@ -1,0 +1,709 @@
+{
+  "info": {
+    "_postman_id": "health-portal-group-c-2026",
+    "name": "Health Portal API — Wire-Speed Demons (Group C)",
+    "description": "Run order for a clean demonstration:\n\n  1. Auth > Login                          → sets {{token}} automatically\n  2. Patients > Create Patient              → sets {{testPatientId}}\n  3. Vaccinations > Create Vaccination (Future)  → isDue = false\n  4. Vaccinations > Create Vaccination (Due)     → isDue = true\n  5. Patients > Get Patient (has schedule link)  → HATEOAS demo\n  6. Appointments > Book Appointment        → sets {{testAppointmentId}}\n  7. Run the rest in order — cleanup is at the very bottom.\n\nSeeded IDs (pre-populated in collection variables):\n  seededPatientId  = b2c3d4e5-0000-0000-0000-000000000001  (Jane Doe)\n  seededClinicId   = a1b2c3d4-0000-0000-0000-000000000001  (Baltimore Clinic)\n  slotDate         = 2026-05-15",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+
+  "auth": {
+    "type": "bearer",
+    "bearer": [{ "key": "token", "value": "{{token}}", "type": "string" }]
+  },
+
+  "variable": [
+    { "key": "baseUrl",          "value": "http://localhost:8080/api/v1", "type": "string" },
+    { "key": "token",            "value": "", "type": "string" },
+    { "key": "testPatientId",    "value": "", "type": "string" },
+    { "key": "testVaccinationId","value": "", "type": "string" },
+    { "key": "testAppointmentId","value": "", "type": "string" },
+    { "key": "seededPatientId",  "value": "b2c3d4e5-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "seededClinicId",   "value": "a1b2c3d4-0000-0000-0000-000000000001", "type": "string" },
+    { "key": "slotDate",         "value": "2026-05-15", "type": "string" }
+  ],
+
+  "item": [
+
+    {
+      "name": "1 · Auth",
+      "item": [
+        {
+          "name": "Login → sets token",
+          "auth": { "type": "noauth" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Token returned', () => pm.expect(json.token).to.be.a('string'));",
+            "pm.collectionVariables.set('token', json.token);",
+            "console.log('Token saved:', json.token.substring(0, 30) + '...');"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"password\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Login — 401 Wrong Credentials",
+          "auth": { "type": "noauth" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 401', () => pm.response.to.have.status(401));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin\",\n  \"password\": \"wrongpassword\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Protected endpoint — 401 No Token",
+          "auth": { "type": "noauth" },
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 401 without token', () => pm.response.to.have.status(401));",
+            "pm.test('Error message present', () => pm.expect(pm.response.json().error).to.be.a('string'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients", "host": ["{{baseUrl}}"], "path": ["patients"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "2 · Patients",
+      "item": [
+        {
+          "name": "List Patients",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Has content array', () => pm.expect(json.content).to.be.an('array'));",
+            "pm.test('Has page metadata', () => pm.expect(json.page).to.be.an('object'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));",
+            "pm.test('At least 2 seeded patients', () => pm.expect(json.content.length).to.be.at.least(2));",
+            "pm.test('id field comes before _links', () => {",
+            "  const keys = Object.keys(json.content[0]);",
+            "  pm.expect(keys.indexOf('id')).to.be.lessThan(keys.indexOf('_links'));",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients?page=0&size=20", "host": ["{{baseUrl}}"], "path": ["patients"],
+              "query": [{ "key": "page", "value": "0" }, { "key": "size", "value": "20" }] }
+          }
+        },
+        {
+          "name": "Create Patient → sets testPatientId",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('Has id', () => pm.expect(json.id).to.be.a('string'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));",
+            "pm.test('Has self link', () => pm.expect(json._links.self).to.be.an('object'));",
+            "pm.test('Has vaccinations link', () => pm.expect(json._links.vaccinations).to.be.an('object'));",
+            "pm.test('No schedule link (no due vaccinations yet)', () => pm.expect(json._links.schedule).to.be.undefined);",
+            "pm.collectionVariables.set('testPatientId', json.id);",
+            "console.log('testPatientId set to', json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Demo\",\n  \"dateOfBirth\": \"1995-03-20\",\n  \"email\": \"alex.demo@example.com\",\n  \"phone\": \"410-555-1234\",\n  \"address\": {\n    \"street\": \"100 Test Ave\",\n    \"city\": \"Baltimore\",\n    \"state\": \"MD\",\n    \"zip\": \"21201\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients", "host": ["{{baseUrl}}"], "path": ["patients"] }
+          }
+        },
+        {
+          "name": "Create Patient — 409 Duplicate Email",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+            "pm.test('Error shape valid', () => {",
+            "  const json = pm.response.json();",
+            "  pm.expect(json.status).to.eql(409);",
+            "  pm.expect(json.message).to.be.a('string');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Duplicate\",\n  \"lastName\": \"User\",\n  \"dateOfBirth\": \"1990-01-01\",\n  \"email\": \"alex.demo@example.com\",\n  \"phone\": \"410-000-0000\",\n  \"address\": {\n    \"street\": \"999 Other St\",\n    \"city\": \"Baltimore\",\n    \"state\": \"MD\",\n    \"zip\": \"21201\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients", "host": ["{{baseUrl}}"], "path": ["patients"] }
+          }
+        },
+        {
+          "name": "Create Patient — 400 Validation Error",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));",
+            "pm.test('Error shape valid', () => {",
+            "  const json = pm.response.json();",
+            "  pm.expect(json.status).to.eql(400);",
+            "  pm.expect(json.message).to.be.a('string');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"\",\n  \"email\": \"not-an-email\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients", "host": ["{{baseUrl}}"], "path": ["patients"] }
+          }
+        },
+        {
+          "name": "Get Patient (no schedule link yet)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('ID matches', () => pm.expect(json.id).to.eql(pm.collectionVariables.get('testPatientId')));",
+            "pm.test('Has self link', () => pm.expect(json._links.self).to.be.an('object'));",
+            "pm.test('Has vaccinations link', () => pm.expect(json._links.vaccinations).to.be.an('object'));",
+            "pm.test('Has appointments link', () => pm.expect(json._links.appointments).to.be.an('object'));",
+            "pm.test('No schedule link (no due vaccinations)', () => pm.expect(json._links.schedule).to.be.undefined);"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}"] }
+          }
+        },
+        {
+          "name": "Get Patient — 404 Not Found",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));",
+            "pm.test('Error shape valid', () => {",
+            "  const json = pm.response.json();",
+            "  pm.expect(json.status).to.eql(404);",
+            "  pm.expect(json.message).to.be.a('string');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["patients", "00000000-0000-0000-0000-000000000000"] }
+          }
+        },
+        {
+          "name": "Update Patient",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Phone updated', () => pm.expect(pm.response.json().phone).to.eql('410-555-9999'));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"Alex\",\n  \"lastName\": \"Demo\",\n  \"dateOfBirth\": \"1995-03-20\",\n  \"email\": \"alex.demo@example.com\",\n  \"phone\": \"410-555-9999\",\n  \"address\": {\n    \"street\": \"100 Test Ave\",\n    \"city\": \"Baltimore\",\n    \"state\": \"MD\",\n    \"zip\": \"21201\"\n  }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}"] }
+          }
+        },
+        {
+          "name": "Get Seeded Patient (Jane Doe)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('First name correct', () => pm.expect(json.firstName).to.eql('Jane'));",
+            "pm.test('Has address', () => pm.expect(json.address).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{seededPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{seededPatientId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "3 · Vaccinations",
+      "item": [
+        {
+          "name": "List Vaccinations (empty for new patient)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Content is empty array', () => pm.expect(pm.response.json().content).to.eql([]));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations"] }
+          }
+        },
+        {
+          "name": "Create Vaccination — Future Due Date (isDue = false)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('Has id', () => pm.expect(json.id).to.be.a('string'));",
+            "pm.test('isDue is false', () => pm.expect(json.isDue).to.be.false);",
+            "pm.test('isDue is a boolean', () => pm.expect(json.isDue).to.be.a('boolean'));",
+            "pm.collectionVariables.set('testVaccinationId', json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vaccineType\": \"COVID_19\",\n  \"dateAdministered\": \"2025-10-01\",\n  \"nextDueDate\": \"2027-10-01\",\n  \"provider\": \"City Health Clinic\",\n  \"lotNumber\": \"A1B2C3\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations"] }
+          }
+        },
+        {
+          "name": "Create Vaccination — Past Due Date (isDue = true)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('isDue is true', () => pm.expect(json.isDue).to.be.true);",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vaccineType\": \"FLU\",\n  \"dateAdministered\": \"2024-09-01\",\n  \"nextDueDate\": \"2025-09-01\",\n  \"provider\": \"Corner Pharmacy\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations"] }
+          }
+        },
+        {
+          "name": "Get Patient — schedule link NOW present (HATEOAS demo)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const links = pm.response.json()._links;",
+            "pm.test('schedule link present (vaccination is due)', () => pm.expect(links.schedule).to.be.an('object'));",
+            "pm.test('schedule link method is POST', () => pm.expect(links.schedule.method).to.eql('POST'));",
+            "pm.test('appointments link present', () => pm.expect(links.appointments).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}"] }
+          }
+        },
+        {
+          "name": "Get Vaccination",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('ID matches', () => pm.expect(json.id).to.eql(pm.collectionVariables.get('testVaccinationId')));",
+            "pm.test('isDue is boolean', () => pm.expect(json.isDue).to.be.a('boolean'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations/{{testVaccinationId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations", "{{testVaccinationId}}"] }
+          }
+        },
+        {
+          "name": "Get Vaccination — 404 Not Found",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations", "00000000-0000-0000-0000-000000000000"] }
+          }
+        },
+        {
+          "name": "Update Vaccination",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Lot number updated', () => pm.expect(pm.response.json().lotNumber).to.eql('ZZ9999'));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vaccineType\": \"COVID_19\",\n  \"dateAdministered\": \"2025-10-01\",\n  \"nextDueDate\": \"2027-10-01\",\n  \"provider\": \"City Health Clinic\",\n  \"lotNumber\": \"ZZ9999\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/vaccinations/{{testVaccinationId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "vaccinations", "{{testVaccinationId}}"] }
+          }
+        },
+        {
+          "name": "List Vaccinations for Seeded Patient (Jane Doe)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Jane has 2 seeded vaccinations', () => pm.expect(pm.response.json().content.length).to.eql(2));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{seededPatientId}}/vaccinations", "host": ["{{baseUrl}}"], "path": ["patients", "{{seededPatientId}}", "vaccinations"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "4 · Clinics",
+      "item": [
+        {
+          "name": "List All Clinics (internal DB)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Has content array', () => pm.expect(json.content).to.be.an('array'));",
+            "pm.test('Has page metadata', () => pm.expect(json.page).to.be.an('object'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));",
+            "pm.test('At least 2 seeded clinics', () => pm.expect(json.content.length).to.be.at.least(2));",
+            "pm.test('Each clinic has _links', () => json.content.forEach(c => pm.expect(c._links).to.be.an('object')));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics", "host": ["{{baseUrl}}"], "path": ["clinics"] }
+          }
+        },
+        {
+          "name": "List Clinics — Filter by ZIP (Geoapify Places)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returns real-world clinics near ZIP 21287', () => pm.expect(pm.response.json().content.length).to.be.at.least(1));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics?zip=21287", "host": ["{{baseUrl}}"], "path": ["clinics"], "query": [{ "key": "zip", "value": "21287" }] }
+          }
+        },
+        {
+          "name": "List Clinics — Filter by City (Geoapify Places)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Returns real-world clinics in Baltimore', () => pm.expect(pm.response.json().content.length).to.be.at.least(1));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics?city=Baltimore", "host": ["{{baseUrl}}"], "path": ["clinics"], "query": [{ "key": "city", "value": "Baltimore" }] }
+          }
+        },
+        {
+          "name": "List Clinics — Invalid ZIP returns empty",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('No results for fake ZIP', () => pm.expect(pm.response.json().content).to.eql([]));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics?zip=00000", "host": ["{{baseUrl}}"], "path": ["clinics"], "query": [{ "key": "zip", "value": "00000" }] }
+          }
+        },
+        {
+          "name": "Get Seeded Clinic",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Has id', () => pm.expect(json.id).to.be.a('string'));",
+            "pm.test('Has name', () => pm.expect(json.name).to.be.a('string'));",
+            "pm.test('Has address', () => pm.expect(json.address).to.be.an('object'));",
+            "pm.test('Has slots link', () => pm.expect(json._links.slots).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics/{{seededClinicId}}", "host": ["{{baseUrl}}"], "path": ["clinics", "{{seededClinicId}}"] }
+          }
+        },
+        {
+          "name": "Get Clinic — 404 Not Found",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["clinics", "00000000-0000-0000-0000-000000000000"] }
+          }
+        },
+        {
+          "name": "Get Available Slots",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('Has content array', () => pm.expect(json.content).to.be.an('array'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));",
+            "pm.test('Slots have available field', () => json.content.forEach(s => pm.expect(s).to.have.property('available')));",
+            "const available = json.content.filter(s => s.available);",
+            "pm.test('Available slots have book link', () => {",
+            "  if (available.length > 0) pm.expect(available[0]._links.book).to.be.an('object');",
+            "});"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics/{{seededClinicId}}/slots?date={{slotDate}}", "host": ["{{baseUrl}}"], "path": ["clinics", "{{seededClinicId}}", "slots"],
+              "query": [{ "key": "date", "value": "{{slotDate}}" }] }
+          }
+        },
+        {
+          "name": "Get Slots — Missing Date → 400",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/clinics/{{seededClinicId}}/slots", "host": ["{{baseUrl}}"], "path": ["clinics", "{{seededClinicId}}", "slots"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "5 · Appointments",
+      "item": [
+        {
+          "name": "List All Appointments",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Has content array', () => pm.expect(pm.response.json().content).to.be.an('array'));",
+            "pm.test('Has page metadata', () => pm.expect(pm.response.json().page).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/appointments", "host": ["{{baseUrl}}"], "path": ["appointments"] }
+          }
+        },
+        {
+          "name": "Book Appointment → sets testAppointmentId",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 201', () => pm.response.to.have.status(201));",
+            "const json = pm.response.json();",
+            "pm.test('Status is SCHEDULED', () => pm.expect(json.status).to.eql('SCHEDULED'));",
+            "pm.test('Has _links', () => pm.expect(json._links).to.be.an('object'));",
+            "pm.test('Has self link', () => pm.expect(json._links.self).to.be.an('object'));",
+            "pm.test('Has cancel link', () => pm.expect(json._links.cancel).to.be.an('object'));",
+            "pm.collectionVariables.set('testAppointmentId', json.id);",
+            "console.log('testAppointmentId set to', json.id);"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{testPatientId}}\",\n  \"clinicId\": \"{{seededClinicId}}\",\n  \"dateTime\": \"2026-09-10T10:00:00\",\n  \"reason\": \"Annual wellness visit\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/appointments", "host": ["{{baseUrl}}"], "path": ["appointments"] }
+          }
+        },
+        {
+          "name": "Book Appointment — 409 Slot Already Taken",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 409 Conflict', () => pm.response.to.have.status(409));",
+            "pm.test('Error message present', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+          ]}}],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{seededPatientId}}\",\n  \"clinicId\": \"{{seededClinicId}}\",\n  \"dateTime\": \"2026-09-10T10:00:00\",\n  \"reason\": \"Duplicate booking attempt\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/appointments", "host": ["{{baseUrl}}"], "path": ["appointments"] }
+          }
+        },
+        {
+          "name": "Get Appointment",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('ID matches', () => pm.expect(json.id).to.eql(pm.collectionVariables.get('testAppointmentId')));",
+            "pm.test('Status is SCHEDULED', () => pm.expect(json.status).to.eql('SCHEDULED'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/appointments/{{testAppointmentId}}", "host": ["{{baseUrl}}"], "path": ["appointments", "{{testAppointmentId}}"] }
+          }
+        },
+        {
+          "name": "Get Appointment — 404 Not Found",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/appointments/00000000-0000-0000-0000-000000000000", "host": ["{{baseUrl}}"], "path": ["appointments", "00000000-0000-0000-0000-000000000000"] }
+          }
+        },
+        {
+          "name": "List Appointments — Filter by patientId",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const content = pm.response.json().content;",
+            "pm.test('All results belong to test patient', () => content.forEach(a =>",
+            "  pm.expect(a.patientId).to.eql(pm.collectionVariables.get('testPatientId'))));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/appointments?patientId={{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["appointments"], "query": [{ "key": "patientId", "value": "{{testPatientId}}" }] }
+          }
+        },
+        {
+          "name": "List Appointments — Filter by status=SCHEDULED",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const content = pm.response.json().content;",
+            "pm.test('All results are SCHEDULED', () => content.forEach(a =>",
+            "  pm.expect(a.status).to.eql('SCHEDULED')));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/appointments?status=SCHEDULED", "host": ["{{baseUrl}}"], "path": ["appointments"], "query": [{ "key": "status", "value": "SCHEDULED" }] }
+          }
+        },
+        {
+          "name": "Patient Appointments Convenience Endpoint",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('Has content array', () => pm.expect(pm.response.json().content).to.be.an('array'));",
+            "pm.test('Has patient link', () => pm.expect(pm.response.json()._links.patient).to.be.an('object'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}/appointments", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}", "appointments"] }
+          }
+        },
+        {
+          "name": "Reschedule Appointment",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('DateTime updated', () => pm.expect(pm.response.json().dateTime).to.include('2026-09-11'));"
+          ]}}],
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"patientId\": \"{{testPatientId}}\",\n  \"clinicId\": \"{{seededClinicId}}\",\n  \"dateTime\": \"2026-09-11T10:00:00\",\n  \"reason\": \"Annual wellness visit — rescheduled\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": { "raw": "{{baseUrl}}/appointments/{{testAppointmentId}}", "host": ["{{baseUrl}}"], "path": ["appointments", "{{testAppointmentId}}"] }
+          }
+        },
+        {
+          "name": "Cancel Appointment",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/appointments/{{testAppointmentId}}", "host": ["{{baseUrl}}"], "path": ["appointments", "{{testAppointmentId}}"] }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "6 · Address Validation",
+      "item": [
+        {
+          "name": "Validate Valid Address — returns normalized",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "const json = pm.response.json();",
+            "pm.test('valid = true', () => pm.expect(json.valid).to.be.true);",
+            "pm.test('normalizedAddress present', () => pm.expect(json.normalizedAddress).to.be.an('object'));",
+            "pm.test('state normalized to uppercase', () => pm.expect(json.normalizedAddress.state).to.eql('MD'));",
+            "pm.test('message present', () => pm.expect(json.message).to.be.a('string'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/address/validate?street=600 N Wolfe St&city=Baltimore&state=MD&zip=21287",
+              "host": ["{{baseUrl}}"], "path": ["address", "validate"],
+              "query": [
+                { "key": "street", "value": "600 N Wolfe St" },
+                { "key": "city",   "value": "Baltimore" },
+                { "key": "state",  "value": "MD" },
+                { "key": "zip",    "value": "21287" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Nonexistent Address — valid = false",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 200', () => pm.response.to.have.status(200));",
+            "pm.test('valid = false', () => pm.expect(pm.response.json().valid).to.be.false);",
+            "pm.test('message explains failure', () => pm.expect(pm.response.json().message).to.be.a('string'));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/address/validate?street=1 Fake Blvd&city=Nowhere&state=XX&zip=00000",
+              "host": ["{{baseUrl}}"], "path": ["address", "validate"],
+              "query": [
+                { "key": "street", "value": "1 Fake Blvd" },
+                { "key": "city",   "value": "Nowhere" },
+                { "key": "state",  "value": "XX" },
+                { "key": "zip",    "value": "00000" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Validate Address — 400 Missing Required Params",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 400', () => pm.response.to.have.status(400));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/address/validate?street=123 Main St",
+              "host": ["{{baseUrl}}"], "path": ["address", "validate"],
+              "query": [{ "key": "street", "value": "123 Main St" }]
+            }
+          }
+        }
+      ]
+    },
+
+    {
+      "name": "7 · Cleanup",
+      "item": [
+        {
+          "name": "Delete Test Patient (cascades vaccinations)",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 204', () => pm.response.to.have.status(204));",
+            "pm.collectionVariables.set('testPatientId', '');",
+            "pm.collectionVariables.set('testVaccinationId', '');",
+            "pm.collectionVariables.set('testAppointmentId', '');"
+          ]}}],
+          "request": {
+            "method": "DELETE",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}"] }
+          }
+        },
+        {
+          "name": "Verify Patient Deleted — 404",
+          "event": [{ "listen": "test", "script": { "type": "text/javascript", "exec": [
+            "pm.test('Status 404 (patient gone)', () => pm.response.to.have.status(404));"
+          ]}}],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/patients/{{testPatientId}}", "host": ["{{baseUrl}}"], "path": ["patients", "{{testPatientId}}"] }
+          }
+        }
+      ]
+    }
+
+  ]
+}
