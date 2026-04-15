@@ -102,7 +102,7 @@ public class AppointmentController {
     // PUT /appointments/{appointmentId}
     @PutMapping("/appointments/{appointmentId}")
     public ResponseEntity<Appointment> updateAppointment(@PathVariable UUID appointmentId,
-                                                          @Valid @RequestBody Appointment appointment) {
+            @Valid @RequestBody Appointment appointment) {
         log.info("PUT /appointments/{}", appointmentId);
         Appointment updated = service.updateAppointment(appointmentId, appointment);
         updated.setLinks(appointmentLinks(appointmentId));

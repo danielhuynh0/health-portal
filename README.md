@@ -6,11 +6,11 @@ A RESTful Spring Boot backend for managing patients, clinic appointments, vaccin
 
 ## Prerequisites
 
-| Tool | Version |
-|---|---|
-| Java | 21 |
+| Tool  | Version                                   |
+| ----- | ----------------------------------------- |
+| Java  | 21                                        |
 | Maven | 3.9+ (or use the included `mvnw` wrapper) |
-| MySQL | 8.0+ |
+| MySQL | 8.0+                                      |
 
 ---
 
@@ -31,7 +31,6 @@ Then edit `application-local.properties`:
 # Geoapify — free key at myprojects.geoapify.com
 geoapify.api-key=YOUR_GEOAPIFY_API_KEY
 
-# MySQL
 db.host=localhost
 db.port=3306
 db.name=health_portal_db
@@ -39,7 +38,6 @@ db.name=health_portal_db
 spring.datasource.username=YOUR_DB_USERNAME
 spring.datasource.password=YOUR_DB_PASSWORD
 
-# JWT — must be at least 256 bits (32+ characters)
 jwt.secret=YOUR_JWT_SECRET
 ```
 

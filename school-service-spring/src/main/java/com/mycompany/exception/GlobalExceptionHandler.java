@@ -17,10 +17,10 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // @Valid failures → 400
+    // @Valid failures = 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex,
-                                                          HttpServletRequest request) {
+            HttpServletRequest request) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .findFirst()
@@ -28,26 +28,26 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", message, request.getRequestURI());
     }
 
-    // Missing required @RequestParam → 400
+    // Missing required @RequestParam = 400
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException ex,
-                                                            HttpServletRequest request) {
+            HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request",
                 "Required parameter '" + ex.getParameterName() + "' is missing", request.getRequestURI());
     }
 
-    // Unreadable body (e.g. invalid enum value) → 400
+    // Unreadable body (ex. invalid enum value) = 400
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
-                                                          HttpServletRequest request) {
+            HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request",
                 "Malformed request body: " + ex.getMostSpecificCause().getMessage(), request.getRequestURI());
     }
 
-    // Wrong path variable type (e.g. non-UUID string where UUID expected) → 400
+    // Wrong path variable type (ex. non-UUID string where UUID expected) = 400
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
-                                                            HttpServletRequest request) {
+            HttpServletRequest request) {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request",
                 "Invalid value '" + ex.getValue() + "' for parameter '" + ex.getName() + "'",
                 request.getRequestURI());
@@ -65,13 +65,13 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ErrorResponse> handleResponseStatus(ResponseStatusException ex,
-                                                              HttpServletRequest request) {
+            HttpServletRequest request) {
         HttpStatus status = HttpStatus.valueOf(ex.getStatusCode().value());
         return buildResponse(status, status.getReasonPhrase(), ex.getReason(), request.getRequestURI());
     }
 
     private ResponseEntity<ErrorResponse> buildResponse(HttpStatus status, String error,
-                                                        String message, String path) {
+            String message, String path) {
         return ResponseEntity.status(status).body(
                 new ErrorResponse(Instant.now().toString(), status.value(), error, message, path));
     }
