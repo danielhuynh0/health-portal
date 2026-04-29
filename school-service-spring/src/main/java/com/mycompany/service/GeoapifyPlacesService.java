@@ -33,11 +33,6 @@ public class GeoapifyPlacesService {
                 .build();
     }
 
-    /**
-     * Search for real-world healthcare facilities near the given ZIP / city
-     * using the Geoapify Places API. Returns a page of results as Clinic
-     * objects.
-     */
     public List<Clinic> searchNearby(String zip, String city, int limit, int offset) {
         try {
             double[] latLon = geocode(zip, city);
@@ -75,7 +70,7 @@ public class GeoapifyPlacesService {
                     confidence, zip, city);
             return null;
         }
-        log.info("Geocoded zip={} city={} → lat={} lon={} confidence={}", zip, city, r.lat, r.lon, confidence);
+        log.info("Geocoded zip={} city={} lat={} lon={} confidence={}", zip, city, r.lat, r.lon, confidence);
         return new double[]{r.lat, r.lon};
     }
 
@@ -155,7 +150,6 @@ public class GeoapifyPlacesService {
         public double confidence;
     }
 
-    // GeoJSON FeatureCollection
     @JsonIgnoreProperties(ignoreUnknown = true)
     private static class PlacesResponse {
 

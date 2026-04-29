@@ -61,7 +61,6 @@ public class GeoapifyAddressService {
                     "Address could not be verified (low confidence)");
         }
 
-        // normalize the address from Geoapify's standardized fields
         String normalizedStreet = result.addressLine1 != null ? result.addressLine1 : street;
         String normalizedCity = result.city != null ? result.city : city;
         String normalizedState = result.stateCode != null ? result.stateCode : state.toUpperCase();

@@ -49,8 +49,6 @@ public class ClinicController {
         Map<String, Link> links = new LinkedHashMap<>();
         links.put("self", new Link("/api/v1/clinics?page=" + page + "&size=" + size, "self", "GET"));
 
-        // When a location filter is provided, delegate to Geoapify Places for
-        // real-world clinic discovery; otherwise return internal seeded clinics.
         if (zip != null || city != null) {
             List<Clinic> external = placesService.searchNearby(zip, city, size, page * size);
             external.forEach(c -> c.setLinks(clinicLinks(c.getId())));

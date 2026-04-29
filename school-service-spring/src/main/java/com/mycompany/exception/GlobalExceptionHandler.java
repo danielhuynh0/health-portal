@@ -17,7 +17,6 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // @Valid failures = 400
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex,
             HttpServletRequest request) {
@@ -28,7 +27,6 @@ public class GlobalExceptionHandler {
         return buildResponse(HttpStatus.BAD_REQUEST, "Bad Request", message, request.getRequestURI());
     }
 
-    // Missing required @RequestParam = 400
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ErrorResponse> handleMissingParam(MissingServletRequestParameterException ex,
             HttpServletRequest request) {
@@ -36,7 +34,6 @@ public class GlobalExceptionHandler {
                 "Required parameter '" + ex.getParameterName() + "' is missing", request.getRequestURI());
     }
 
-    // Unreadable body (ex. invalid enum value) = 400
     @ExceptionHandler(HttpMessageNotReadableException.class)
     public ResponseEntity<ErrorResponse> handleUnreadable(HttpMessageNotReadableException ex,
             HttpServletRequest request) {
@@ -44,7 +41,6 @@ public class GlobalExceptionHandler {
                 "Malformed request body: " + ex.getMostSpecificCause().getMessage(), request.getRequestURI());
     }
 
-    // Wrong path variable type (ex. non-UUID string where UUID expected) = 400
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ErrorResponse> handleTypeMismatch(MethodArgumentTypeMismatchException ex,
             HttpServletRequest request) {
