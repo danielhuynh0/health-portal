@@ -42,7 +42,6 @@ public class Appointment {
     @Column(nullable = false)
     private UUID clinicId;
 
-    @NotBlank
     private String dateTime;
 
     private String reason;

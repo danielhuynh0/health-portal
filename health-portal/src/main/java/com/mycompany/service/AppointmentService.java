@@ -75,6 +75,7 @@ public class AppointmentService {
         if (!slot.isAvailable()) {
             throw new ConflictException("Slot is no longer available: " + appointment.getSlotId());
         }
+        appointment.setDateTime(slot.getDateTime());
         Appointment saved = repo.save(appointment);
         slot.setAvailable(false);
         slotRepo.save(slot);

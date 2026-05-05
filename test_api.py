@@ -415,7 +415,6 @@ appt_body = {
     "slotId":    SLOT_AVAILABLE,
     "patientId": patient_id,
     "clinicId":  CLINIC_1,
-    "dateTime":  TEST_APPT_DATETIME,
     "reason":    "Test appointment",
 }
 r = POST("/appointments", appt_body, token=TOKEN)
@@ -424,6 +423,7 @@ check("Location header present",             "Location" in r.headers)
 body = r.json()
 check("Body has 'id'",                       "id"        in body)
 check("slotId present in response",          body.get("slotId") == SLOT_AVAILABLE)
+check("dateTime derived from slot",          body.get("dateTime") == TEST_APPT_DATETIME)
 check("status defaults to SCHEDULED",        body.get("status") == "SCHEDULED")
 check("patientId correct",                   body.get("patientId") == patient_id)
 check("clinicId correct",                    body.get("clinicId")  == CLINIC_1)
@@ -434,15 +434,11 @@ r = POST("/appointments", appt_body, token=TOKEN)
 assert_status("Double-book same slot -> 409", r, 409)
 assert_error_shape("409 body has correct shape", r)
 
-r = POST("/appointments", {**appt_body,
-                            "slotId": SLOT_UNAVAILABLE,
-                            "dateTime": "2026-05-15T10:00:00"}, token=TOKEN)
+r = POST("/appointments", {**appt_body, "slotId": SLOT_UNAVAILABLE}, token=TOKEN)
 assert_status("Book already-taken slot -> 409", r, 409)
 assert_error_shape("409 body shape correct", r)
 
-r = POST("/appointments", {**appt_body,
-                            "slotId": str(uuid.uuid4()),
-                            "dateTime": "2026-05-15T12:00:00"}, token=TOKEN)
+r = POST("/appointments", {**appt_body, "slotId": str(uuid.uuid4())}, token=TOKEN)
 assert_status("Unknown slotId -> 404", r, 404)
 assert_error_shape("404 body shape correct", r)
 
@@ -452,8 +448,8 @@ assert_status("Unknown patientId -> 404", r, 404)
 r = POST("/appointments", {**appt_body, "clinicId": str(uuid.uuid4())}, token=TOKEN)
 assert_status("Unknown clinicId -> 404", r, 404)
 
-r = POST("/appointments", {"dateTime": TEST_APPT_DATETIME}, token=TOKEN)
-assert_status("Missing patientId + clinicId -> 400", r, 400)
+r = POST("/appointments", {"reason": "missing required fields"}, token=TOKEN)
+assert_status("Missing patientId, clinicId, slotId -> 400", r, 400)
 
 r = POST("/appointments", {}, token=TOKEN)
 assert_status("Empty body -> 400", r, 400)
