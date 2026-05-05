@@ -21,8 +21,8 @@ A RESTful Spring Boot backend for managing patients, clinic appointments, vaccin
 Copy the template and fill in your values:
 
 ```bash
-cp school-service-spring/application-local.properties.template \
-   school-service-spring/application-local.properties
+cp health-portal/application-local.properties.template \
+   health-portal/application-local.properties
 ```
 
 Then edit `application-local.properties`:
@@ -50,7 +50,7 @@ Make sure MySQL is running and the configured user has permission to create data
 ### 3. Run the application
 
 ```bash
-cd school-service-spring
+cd health-portal
 ./mvnw spring-boot:run
 ```
 
