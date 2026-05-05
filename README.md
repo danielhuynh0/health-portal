@@ -12,6 +12,12 @@ A RESTful Spring Boot backend for managing patients, clinic appointments, vaccin
 | Maven | 3.9+ (or use the included `mvnw` wrapper) |
 | MySQL | 8.0+                                      |
 
+## Live Deployment
+
+The API is deployed on Heroku: https://health-portal-5699f82b1edc.herokuapp.com/api/v1/
+
+Swagger UI: https://health-portal-5699f82b1edc.herokuapp.com/api/v1/swagger-ui.html
+
 ---
 
 ## Local Setup
