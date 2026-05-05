@@ -1,4 +1,4 @@
-package com.mycompany.school_service_spring;
+package com.mycompany.health_portal;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
