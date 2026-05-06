@@ -792,14 +792,14 @@ components:
         clinicId:
           type: string
           format: uuid
-        dateTime:
+        slotId:
           type: string
-          format: date-time
-          example: "2026-05-15T10:00:00"
+          format: uuid
+          example: "d290f1ee-6c54-4b01-90e6-d701748f0851"
         reason:
           type: string
           example: Annual flu vaccination
-      required: [patientId, clinicId, dateTime]
+      required: [patientId, clinicId, slotId]
 
     AppointmentResponse:
       allOf:
